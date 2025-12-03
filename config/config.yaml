@@ -1,0 +1,32 @@
+# Segmentation Pipeline Configuration
+
+# Model settings
+models:
+  # Qwen3-VL for text parsing and entity extraction
+  text_parser:
+    model_name: "Qwen/Qwen3-VL-8B-Instruct"
+    dtype: "bfloat16"
+    device_map: "auto"
+  
+  # SAM3 for segmentation
+  segmentation:
+    model_name: "facebook/sam3"
+    dtype: "bfloat16"
+    device: "cuda"
+
+# Segmentation thresholds
+segmentation:
+  threshold: 0.5
+  mask_threshold: 0.5
+
+# Output settings
+output:
+  box_format: "xyxy"
+  coordinate_unit: "pixels"
+  save_visualizations: true
+  visualization_dir: "outputs/visualizations"
+
+# Device settings
+device:
+  cuda_device: 0
+  use_flash_attention: true
