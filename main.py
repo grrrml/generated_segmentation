@@ -198,6 +198,8 @@ def main():
     device = args.device or config.get("models", {}).get("segmentation", {}).get("device", "cuda")
     threshold = args.threshold if args.threshold is not None else config.get("segmentation", {}).get("threshold", 0.5)
     mask_threshold = args.mask_threshold if args.mask_threshold is not None else config.get("segmentation", {}).get("mask_threshold", 0.5)
+    pairing_threshold = config.get("pairing", {}).get("threshold", 0.8)
+    
     
     # Validate input paths
     if not validate_paths(args):
@@ -238,6 +240,8 @@ def main():
         generated_image_path=args.generated,
         save_visualizations=args.save_viz,
         visualization_dir=args.viz_dir if args.save_viz else None,
+        pair_objects=True,
+        pairing_threshold=pairing_threshold,
     )
     
     # Add comparison if requested

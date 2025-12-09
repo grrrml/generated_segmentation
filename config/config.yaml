@@ -1,3 +1,6 @@
+# Pairing settings
+pairing:
+  threshold: 0.8
 # Segmentation Pipeline Configuration
 
 # Model settings
@@ -12,6 +15,11 @@ models:
   segmentation:
     model_name: "facebook/sam3"
     dtype: "bfloat16"
+    device: "cuda"
+
+  # DINO v3 for object embeddings
+  dino:
+    model_name: "facebook/dinov3-vitb16-pretrain-lvd1689m"
     device: "cuda"
 
 # Segmentation thresholds

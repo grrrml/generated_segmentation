@@ -9,9 +9,10 @@ import torch
 import numpy as np
 from PIL import Image
 from transformers import AutoModel, AutoImageProcessor
+from PIL import Image as PILImage
 
 class DINOv3Embedder:
-    def __init__(self, model_name: str = "facebook/dinov3-base-224", device: str = "cuda"):
+    def __init__(self, model_name: str = "facebook/dinov3-vitb16-pretrain-lvd1689m", device: str = "cuda"):
         self.device = device
         self.model = AutoModel.from_pretrained(model_name).to(device)
         self.model.eval()
@@ -19,7 +20,7 @@ class DINOv3Embedder:
 
     def get_embedding(self, image: Union[str, Image.Image], mask: np.ndarray) -> np.ndarray:
         """
-        Extract DINO v3 embedding for the masked region of the image.
+        Extract DINO v3 embedding for the masked region of the image using Masked Global Average Pooling.
         Args:
             image: PIL Image or path
             mask: binary numpy array (H, W)
@@ -28,16 +29,29 @@ class DINOv3Embedder:
         """
         if isinstance(image, str):
             image = Image.open(image).convert("RGB")
-        # Apply mask: set background to black
         arr = np.array(image)
-        arr[mask == 0] = 0
-        masked_img = Image.fromarray(arr)
-        inputs = self.processor(images=masked_img, return_tensors="pt").to(self.device)
+        # DINOv3 expects 224x224, resize image and mask
+        image_resized = PILImage.fromarray(arr).resize((224, 224), PILImage.BICUBIC)
+        mask_resized = PILImage.fromarray(mask.astype(np.uint8)*255).resize((224, 224), PILImage.NEAREST)
+        mask_resized = np.array(mask_resized) > 127
+        inputs = self.processor(images=image_resized, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            outputs = self.model(**inputs)
-            # Use CLS token or mean pooling
-            if hasattr(outputs, "last_hidden_state"):
-                emb = outputs.last_hidden_state.mean(dim=1).cpu().numpy().squeeze()
-            else:
-                emb = outputs.pooler_output.cpu().numpy().squeeze()
+            outputs = self.model(**inputs, output_hidden_states=True)
+            # Get patch tokens (exclude CLS token)
+            patch_tokens = outputs.last_hidden_state[:, 1:, :].squeeze(0)  # (num_patches, dim)
+        # Map mask to patch tokens
+        # For ViT-B/16, 224x224 image -> 14x14 patches
+        patch_size = 16
+        h, w = mask_resized.shape
+        mask_patches = mask_resized.reshape(h//patch_size, patch_size, w//patch_size, patch_size)
+        mask_patches = mask_patches.transpose(0,2,1,3).reshape(h//patch_size, w//patch_size, patch_size*patch_size)
+        mask_patch_map = mask_patches.mean(axis=2) > 0.5  # (14, 14)
+        mask_patch_flat = mask_patch_map.flatten()
+        # Select only patch tokens on the object
+        selected_tokens = patch_tokens[mask_patch_flat]
+        if selected_tokens.shape[0] == 0:
+            # fallback: use mean of all tokens
+            emb = patch_tokens.mean(dim=0).cpu().numpy()
+        else:
+            emb = selected_tokens.mean(dim=0).cpu().numpy()
         return emb
