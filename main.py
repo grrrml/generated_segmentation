@@ -245,6 +245,35 @@ def main():
         visualization_dir=args.viz_dir if args.save_viz else None,
         pair_objects=True,
     )
+
+    # Save DINO embeddings for all objects in a separate JSON file
+    embeddings = {
+        "contextual_images": [
+            {
+                "path": ctx["path"],
+                "objects": [
+                    {
+                        "object_id": obj["object_id"],
+                        "label": obj["label"],
+                        "dino_embedding": obj["dino_embedding"]
+                    } for obj in ctx["objects"]
+                ]
+            } for ctx in output["contextual_images"]
+        ],
+        "generated_image": {
+            "path": output["generated_image"]["path"],
+            "objects": [
+                {
+                    "object_id": obj["object_id"],
+                    "label": obj["label"],
+                    "dino_embedding": obj["dino_embedding"]
+                } for obj in output["generated_image"]["objects"]
+            ]
+        }
+    }
+    emb_path = Path(args.output).with_name(Path(args.output).stem + "_embeddings.json")
+    with open(emb_path, "w", encoding="utf-8") as f:
+        json.dump(embeddings, f, indent=2, ensure_ascii=False)
     
     # Add comparison if requested
     if args.compare:

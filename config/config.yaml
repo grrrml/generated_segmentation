@@ -1,6 +1,3 @@
-# Pairing settings
-pairing:
-  threshold: 0.8
 # Segmentation Pipeline Configuration
 
 # Model settings
@@ -26,6 +23,10 @@ models:
 segmentation:
   threshold: 0.7
   mask_threshold: 0.5
+
+# Pairing settings
+pairing:
+  threshold: 0.5
 
 # Entity filtering - exclude non-physical/abstract concepts
 entity_filter:
