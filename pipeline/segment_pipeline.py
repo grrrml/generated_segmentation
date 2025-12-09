@@ -32,7 +32,7 @@ class SegmentationPipeline:
         self,
         text_parser_model: str = "Qwen/Qwen3-VL-8B-Instruct",
         segmentation_model: str = "facebook/sam3",
-        dino_model: str = "facebook/dinov3-base-224",
+        dino_model: str = "facebook/dinov3-vitb16-pretrain-lvd1689m",
         dtype: str = "bfloat16",
         device: str = "cuda",
         threshold: float = 0.5,

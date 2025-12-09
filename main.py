@@ -219,9 +219,11 @@ def main():
         print(f"Thresholds: detection={threshold}, mask={mask_threshold}")
         print("=" * 60)
     
+    dino_model = config.get("models", {}).get("dino", {}).get("model_name", "facebook/dinov3-vitb16-pretrain-lvd1689m")
     pipeline = SegmentationPipeline(
         text_parser_model=text_model,
         segmentation_model=seg_model,
+        dino_model=dino_model,
         dtype=dtype,
         device=device,
         threshold=threshold,
