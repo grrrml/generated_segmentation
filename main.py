@@ -228,6 +228,7 @@ def main():
         device=device,
         threshold=threshold,
         mask_threshold=mask_threshold,
+        pairing_threshold=pairing_threshold,
     )
     
     # Run segmentation
@@ -243,7 +244,6 @@ def main():
         save_visualizations=args.save_viz,
         visualization_dir=args.viz_dir if args.save_viz else None,
         pair_objects=True,
-        pairing_threshold=pairing_threshold,
     )
     
     # Add comparison if requested

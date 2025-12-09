@@ -37,6 +37,7 @@ class SegmentationPipeline:
         device: str = "cuda",
         threshold: float = 0.5,
         mask_threshold: float = 0.5,
+        pairing_threshold: float = 0.8,
     ):
         """
         Initialize the segmentation pipeline.
@@ -51,6 +52,7 @@ class SegmentationPipeline:
         """
         self.threshold = threshold
         self.mask_threshold = mask_threshold
+        self.pairing_threshold = pairing_threshold
         
         # Load both models simultaneously
         print("Initializing Segmentation Pipeline...")
@@ -149,7 +151,7 @@ class SegmentationPipeline:
         # Step 5: Pair objects by cosine similarity
         pairings = None
         if pair_objects:
-            pairings = self.pair_objects_by_embedding(contextual_results, generated_result)
+            pairings = self.pair_objects_by_embedding(contextual_results, generated_result, threshold=self.pairing_threshold)
 
         # Build output structure
         output = {
