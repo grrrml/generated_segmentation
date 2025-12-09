@@ -123,14 +123,14 @@ Examples:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.5,
-        help="Detection confidence threshold (default: 0.5)",
+        default=None,
+        help="Detection confidence threshold (default: from config or 0.5)",
     )
     parser.add_argument(
         "--mask-threshold",
         type=float,
-        default=0.5,
-        help="Mask binarization threshold (default: 0.5)",
+        default=None,
+        help="Mask binarization threshold (default: from config or 0.5)",
     )
     
     # Visualization options
@@ -196,8 +196,8 @@ def main():
     seg_model = args.seg_model or config.get("models", {}).get("segmentation", {}).get("model_name", "facebook/sam3")
     dtype = args.dtype or config.get("models", {}).get("text_parser", {}).get("dtype", "bfloat16")
     device = args.device or config.get("models", {}).get("segmentation", {}).get("device", "cuda")
-    threshold = args.threshold or config.get("segmentation", {}).get("threshold", 0.5)
-    mask_threshold = args.mask_threshold or config.get("segmentation", {}).get("mask_threshold", 0.5)
+    threshold = args.threshold if args.threshold is not None else config.get("segmentation", {}).get("threshold", 0.5)
+    mask_threshold = args.mask_threshold if args.mask_threshold is not None else config.get("segmentation", {}).get("mask_threshold", 0.5)
     
     # Validate input paths
     if not validate_paths(args):
