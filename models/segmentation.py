@@ -131,6 +131,10 @@ class SAM3Segmenter:
             return_tensors="pt",
         ).to(self.device)
         
+        # Convert pixel_values to model's dtype to avoid dtype mismatch
+        if "pixel_values" in inputs and inputs["pixel_values"].dtype != self.dtype:
+            inputs["pixel_values"] = inputs["pixel_values"].to(dtype=self.dtype)
+        
         # Store original sizes for post-processing
         original_sizes = [[image_height, image_width]]
         

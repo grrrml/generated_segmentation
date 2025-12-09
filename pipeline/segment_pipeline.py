@@ -11,12 +11,13 @@ Orchestrates the complete segmentation workflow:
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 import json
-
+import numpy as np
+from numpy.linalg import norm
 from PIL import Image
-
 from models.text_parser import TextParser
 from models.segmentation import SAM3Segmenter
-from utils.mask_utils import encode_rle
+from models.dino_embedder import DINOv3Embedder
+from utils.mask_utils import encode_rle, decode_rle, masks_iou, bbox_iou
 from utils.visualization import draw_results, save_visualization
 
 
@@ -31,6 +32,7 @@ class SegmentationPipeline:
         self,
         text_parser_model: str = "Qwen/Qwen3-VL-8B-Instruct",
         segmentation_model: str = "facebook/sam3",
+        dino_model: str = "facebook/dinov3-base-224",
         dtype: str = "bfloat16",
         device: str = "cuda",
         threshold: float = 0.5,
@@ -66,6 +68,7 @@ class SegmentationPipeline:
             device=device,
         )
         
+        self.dino_embedder = DINOv3Embedder(model_name=dino_model, device=device)
         print("=" * 50)
         print("Pipeline ready!")
     
@@ -76,6 +79,7 @@ class SegmentationPipeline:
         generated_image_path: str,
         save_visualizations: bool = False,
         visualization_dir: Optional[str] = None,
+        pair_objects: bool = True,
     ) -> Dict[str, Any]:
         """
         Run the complete segmentation pipeline.
@@ -130,6 +134,23 @@ class SegmentationPipeline:
                 prefix="generated",
             )
         
+        # Step 4: Compute DINO embeddings for all objects
+        print("\n[4/4] Computing DINO v3 embeddings for all objects...")
+        for result in contextual_results:
+            image = Image.open(result["path"]).convert("RGB")
+            for obj in result["objects"]:
+                mask = self._decode_mask(obj["mask"])
+                obj["dino_embedding"] = self.dino_embedder.get_embedding(image, mask).tolist()
+        image = Image.open(generated_result["path"]).convert("RGB")
+        for obj in generated_result["objects"]:
+            mask = self._decode_mask(obj["mask"])
+            obj["dino_embedding"] = self.dino_embedder.get_embedding(image, mask).tolist()
+
+        # Step 5: Pair objects by cosine similarity
+        pairings = None
+        if pair_objects:
+            pairings = self.pair_objects_by_embedding(contextual_results, generated_result)
+
         # Build output structure
         output = {
             "text_prompt": text_prompt,
@@ -138,14 +159,55 @@ class SegmentationPipeline:
             "generated_image": generated_result,
             "box_format": "xyxy",
             "coordinate_unit": "pixels",
+            "object_pairings": pairings,
         }
-        
+
         print(f"\nPipeline complete!")
         print(f"  - Entities detected: {len(entities)}")
         print(f"  - Contextual images: {len(contextual_results)}")
         print(f"  - Total objects in generated image: {len(generated_result['objects'])}")
-        
+
         return output
+
+    def _decode_mask(self, mask_rle):
+        from utils.mask_utils import decode_rle
+        return decode_rle(mask_rle)
+
+    def pair_objects_by_embedding(self, contextual_results, generated_result, threshold=0.8):
+        import numpy as np
+        from numpy.linalg import norm
+        def cosine_similarity(a, b):
+            a = np.array(a)
+            b = np.array(b)
+            return float(np.dot(a, b) / (norm(a) * norm(b) + 1e-8))
+
+        pairs = []
+        # Flatten contextual objects
+        ctx_objs = []
+        for ctx in contextual_results:
+            for obj in ctx["objects"]:
+                ctx_objs.append({**obj, "source_image": ctx["path"]})
+        # Pair each generated object to the most similar contextual object
+        for gen_obj in generated_result["objects"]:
+            best_sim = -1
+            best_ctx = None
+            for ctx_obj in ctx_objs:
+                sim = cosine_similarity(gen_obj["dino_embedding"], ctx_obj["dino_embedding"])
+                if sim > best_sim:
+                    best_sim = sim
+                    best_ctx = ctx_obj
+            pair_info = {
+                "generated_object_id": gen_obj["object_id"],
+                "generated_label": gen_obj["label"],
+                "best_contextual_object_id": best_ctx["object_id"] if best_ctx else None,
+                "best_contextual_label": best_ctx["label"] if best_ctx else None,
+                "source_image": best_ctx["source_image"] if best_ctx else None,
+                "cosine_similarity": best_sim,
+                "threshold": threshold,
+                "paired": best_sim >= threshold if best_ctx else False,
+            }
+            pairs.append(pair_info)
+        return pairs
     
     def _segment_image(
         self,

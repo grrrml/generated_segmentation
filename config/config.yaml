@@ -16,8 +16,58 @@ models:
 
 # Segmentation thresholds
 segmentation:
-  threshold: 0.5
+  threshold: 0.7
   mask_threshold: 0.5
+
+# Entity filtering - exclude non-physical/abstract concepts
+entity_filter:
+  excluded_terms:
+    # Lighting/shadows (not segmentable)
+    - "realistic shadows"
+    - "shadows"
+    - "shadow"
+    - "natural light"
+    - "light"
+    - "lighting"
+    - "sunlight"
+    - "ambient light"
+    - "overhead light"
+    - "soft light"
+    - "warm light"
+    - "dramatic lighting"
+    # Structural/environmental elements (not distinct objects)
+    - "wall"
+    - "walls"
+    - "ceiling"
+    - "floor"
+    - "ground"
+    - "road"
+    - "sky"
+    - "room"
+    - "space"
+    - "air"
+    # Abstract/style terms
+    - "atmosphere"
+    - "mood"
+    - "style"
+    - "aesthetic"
+    - "vibe"
+    - "tone"
+    # Non-physical descriptions
+    - "reflection"
+    - "reflections"
+    - "bokeh"
+    - "depth of field"
+    - "blur"
+    - "contrast"
+    - "saturation"
+    # Scene descriptors (not objects)
+    - "scene"
+    - "setting"
+    - "environment"
+    - "background"
+    - "foreground"
+    - "composition"
 
 # Output settings
 output:

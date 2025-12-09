@@ -59,22 +59,32 @@ class TextParser:
             List of entity names (e.g., ["dog", "woman", "red sofa", "garden"])
         """
         # System prompt for entity extraction
-        extraction_prompt = f"""Analyze the following image generation prompt and extract ALL objects, entities, people, animals, or things that could be visually segmented in the resulting image.
+        extraction_prompt = f"""Analyze the following image generation prompt and extract ONLY distinct physical objects, entities, people, or animals that could be visually segmented in the resulting image.
 
-Return ONLY a JSON array of strings, where each string is a segmentable entity.
+Return ONLY a JSON array of strings, where each string is a segmentable distinct object.
 Include:
 - People (e.g., "woman", "man", "child")
-- Animals (e.g., "dog", "cat", "bird")
-- Objects (e.g., "chair", "table", "car")
-- Nature elements (e.g., "tree", "flower", "mountain")
-- Buildings/structures (e.g., "house", "bridge")
-- Any other visually distinct entities
+- Animals (e.g., "dog", "cat", "bird", "horse")
+- Furniture (e.g., "chair", "table", "bed", "sofa")
+- Objects (e.g., "lamp", "vase", "book", "phone")
+- Vehicles (e.g., "car", "bicycle", "airplane", "boat")
+- Nature elements (e.g., "tree", "flower", "rock", "river")
+- Buildings/structures (e.g., "house", "bridge", "tower")
+- Clothing/accessories (e.g., "hat", "dress", "bag")
+- Any other DISTINCT physical item that can be visually identified and segmented.
+
+DO NOT include:
+- Lighting descriptions (shadows, natural light, sunlight, ambient light)
+- Abstract concepts (atmosphere, mood, style, aesthetic)
+- Photography terms (bokeh, depth of field, composition)
+- Quality descriptors (realistic, photorealistic, detailed)
 
 Be specific with attributes when mentioned (e.g., "red car" not just "car").
 
 Prompt: "{prompt}"
 
 Return only the JSON array, no explanation:"""
+# - Structural/environmental elements (wall, ceiling, floor, ground, road, sky, room, space)
 
         messages = [
             {
@@ -116,7 +126,72 @@ Return only the JSON array, no explanation:"""
         
         # Parse JSON response
         entities = self._parse_entities(output_text)
+        
+        # Apply exclusion filter
+        entities = self._filter_excluded_entities(entities)
         return entities
+    
+    def _filter_excluded_entities(self, entities: List[str]) -> List[str]:
+        """
+        Filter out non-physical/abstract entities that shouldn't be segmented.
+        
+        Args:
+            entities: List of entity names
+            
+        Returns:
+            Filtered list without excluded terms
+        """
+        # Exact-match excluded terms - these must match the whole entity exactly
+        excluded_exact = {
+            # Lighting (not segmentable)
+            "realistic shadows", "shadows", "shadow",
+            "natural light", "light", "lighting", "sunlight", 
+            "ambient light", "overhead light", "soft light", "warm light",
+            "dramatic lighting", "rim light", "backlight",
+            # Structural/environmental elements (not distinct objects)
+            # "wall", "walls", "ceiling", "floor", "ground", "road",
+            # "sky", "room", "space", "air", "pavement", "sidewalk",
+            # Abstract/style terms
+            "atmosphere", "mood", "style", "aesthetic", "vibe", "tone",
+            # Non-physical descriptions  
+            "reflection", "reflections", "bokeh", "depth of field",
+            "blur", "contrast", "saturation", "hdr",
+            # Scene descriptors (not objects)
+            "scene", "setting", "environment", "background", "foreground",
+            "composition", "view", "angle", "perspective",
+            # Quality descriptors
+            "detail", "details", "texture", "textures", "quality",
+            "resolution", "realistic", "photorealistic", "hyperrealistic",
+        }
+        
+        # Color words that can appear in valid object descriptions (e.g., "light brown cabinet")
+        color_modifiers = {"light", "dark", "bright", "pale", "deep"}
+        
+        filtered = []
+        for entity in entities:
+            entity_lower = entity.lower().strip()
+            
+            # Check exact match first
+            if entity_lower in excluded_exact:
+                continue
+                
+            # Check if entity starts with excluded term (but not color modifiers)
+            is_excluded = False
+            for term in excluded_exact:
+                if entity_lower.startswith(term + " "):
+                    # Check if this is actually a color modifier usage (e.g., "light brown")
+                    # If the word after the term is a color or object word, don't exclude
+                    first_word = entity_lower.split()[0] if entity_lower.split() else ""
+                    if first_word in color_modifiers:
+                        # This is likely a color description like "light brown cabinet"
+                        continue
+                    is_excluded = True
+                    break
+            
+            if not is_excluded:
+                filtered.append(entity)
+        
+        return filtered
     
     def _parse_entities(self, response: str) -> List[str]:
         """
