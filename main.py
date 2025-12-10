@@ -246,7 +246,7 @@ def main():
         pair_objects=True,
     )
 
-    # Save DINO embeddings for all objects in a separate JSON file
+    # Build embeddings JSON from output with dino_embedding
     embeddings = {
         "contextual_images": [
             {
@@ -256,7 +256,7 @@ def main():
                         "object_id": obj["object_id"],
                         "label": obj["label"],
                         "dino_embedding": obj["dino_embedding"]
-                    } for obj in ctx["objects"]
+                    } for obj in ctx["objects"] if "dino_embedding" in obj
                 ]
             } for ctx in output["contextual_images"]
         ],
@@ -267,13 +267,30 @@ def main():
                     "object_id": obj["object_id"],
                     "label": obj["label"],
                     "dino_embedding": obj["dino_embedding"]
-                } for obj in output["generated_image"]["objects"]
+                } for obj in output["generated_image"]["objects"] if "dino_embedding" in obj
             ]
         }
     }
     emb_path = Path(args.output).with_name(Path(args.output).stem + "_embeddings.json")
     with open(emb_path, "w", encoding="utf-8") as f:
         json.dump(embeddings, f, indent=2, ensure_ascii=False)
+
+    # Build output.json without dino_embedding fields
+    def strip_embeddings(objlist):
+        return [
+            {k: v for k, v in obj.items() if k != "dino_embedding"}
+            for obj in objlist
+        ]
+    output_clean = dict(output)
+    output_clean["contextual_images"] = [
+        dict(ctx, objects=strip_embeddings(ctx["objects"]))
+        for ctx in output["contextual_images"]
+    ]
+    output_clean["generated_image"] = dict(
+        output["generated_image"],
+        objects=strip_embeddings(output["generated_image"]["objects"])
+    )
+    json_output = pipeline.to_json(output_clean, str(output_path))
     
     # Add comparison if requested
     if args.compare:
