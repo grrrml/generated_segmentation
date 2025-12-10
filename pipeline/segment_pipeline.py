@@ -184,12 +184,12 @@ class SegmentationPipeline:
             return float(np.dot(a, b) / (norm(a) * norm(b) + 1e-8))
 
         pairs = []
-        # Flatten contextual objects
+        # Flatten contextual objects only
         ctx_objs = []
         for ctx in contextual_results:
             for obj in ctx["objects"]:
                 ctx_objs.append({**obj, "source_image": ctx["path"]})
-        # Pair each generated object to the most similar contextual object
+        # Pair each generated object to the most similar contextual object (no intra-context or intra-generated pairing)
         for gen_obj in generated_result["objects"]:
             best_sim = -1
             best_ctx = None
