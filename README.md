@@ -14,10 +14,8 @@ Edit `config.yaml` to set model names, thresholds, and device options.
 
 ## Output
 
-```bash
 - `output.json`: segmentation results (prompt, entities, objects, masks, bboxes, scores, pairings)
 - `output_embeddings.json`: DINOv3 embeddings for all objects
-```
 
 ## Pairing Logic
 
