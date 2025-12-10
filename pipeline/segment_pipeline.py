@@ -194,6 +194,8 @@ class SegmentationPipeline:
             best_sim = -1
             best_ctx = None
             for ctx_obj in ctx_objs:
+                if gen_obj["label"] != ctx_obj["label"]:
+                    continue
                 sim = cosine_similarity(gen_obj["dino_embedding"], ctx_obj["dino_embedding"])
                 if sim > best_sim:
                     best_sim = sim
