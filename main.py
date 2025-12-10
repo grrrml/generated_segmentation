@@ -290,21 +290,16 @@ def main():
         output["generated_image"],
         objects=strip_embeddings(output["generated_image"]["objects"])
     )
-    json_output = pipeline.to_json(output_clean, str(output_path))
-    
-    # Add comparison if requested
-    if args.compare:
-        comparison = pipeline.compare_objects(
-            contextual_results=output["contextual_images"],
-            generated_result=output["generated_image"],
-        )
-        output["comparison"] = comparison
-    
-    # Save JSON output
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    json_output = pipeline.to_json(output, str(output_path))
+        # Add comparison if requested
+        if args.compare:
+            comparison = pipeline.compare_objects(
+                contextual_results=output_clean["contextual_images"],
+                generated_result=output_clean["generated_image"],
+            )
+            output_clean["comparison"] = comparison
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        json_output = pipeline.to_json(output_clean, str(output_path))
     
     if not args.quiet:
         print(f"\n" + "=" * 60)
